@@ -1,0 +1,13 @@
+### Updates an existing patient entity
+PUT http://localhost:4000/patients/30b4d367-6783-4593-b131-e2a93552f634
+Content-Type: application/json
+
+{
+  "name": "John Doe K",
+  "email": "kafka_test15@example.com",
+  "address": "125 main street22",
+  "dateOfBirth": "1995-09-09"
+
+}
+
+###

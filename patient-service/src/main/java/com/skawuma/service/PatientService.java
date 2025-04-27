@@ -4,6 +4,8 @@ import com.skawuma.dto.PatientRequestDTO;
 import com.skawuma.dto.PatientResponseDTO;
 import com.skawuma.exception.EmailAlreadyExistsException;
 import com.skawuma.exception.PatientNotFoundException;
+import com.skawuma.grpc.BillingServiceGrpcClient;
+import com.skawuma.kafka.KafkaProducer;
 import com.skawuma.mapper.PatientMapper;
 import com.skawuma.model.Patient;
 import com.skawuma.repository.PatientRepository;
@@ -23,11 +25,17 @@ import java.util.UUID;
 @Service
 public class PatientService {
 
+    private final BillingServiceGrpcClient billingServiceGrpcClient;
 
     private final PatientRepository patientRepository;
+
+    private final KafkaProducer kafkaProducer;
+
     @Autowired
-    public PatientService(PatientRepository patientRepository) {
+    public PatientService(PatientRepository patientRepository, BillingServiceGrpcClient billingServiceGrpcClient, KafkaProducer kafkaProducer) {
         this.patientRepository = patientRepository;
+        this.billingServiceGrpcClient = billingServiceGrpcClient;
+        this.kafkaProducer = kafkaProducer;
     }
 
 
@@ -48,10 +56,10 @@ public class PatientService {
         Patient newPatient = patientRepository.save(
                 PatientMapper.toModel(patientRequestDTO));
 
-//        billingServiceGrpcClient.createBillingAccount(newPatient.getId().toString(),
-//                newPatient.getName(), newPatient.getEmail());
-//
-//        kafkaProducer.sendEvent(newPatient);
+        billingServiceGrpcClient.createBillingAccount(newPatient.getId().toString(),
+                newPatient.getName(), newPatient.getEmail());
+
+        kafkaProducer.sendEvent(newPatient);
 
         return PatientMapper.toDTO(newPatient);
     }

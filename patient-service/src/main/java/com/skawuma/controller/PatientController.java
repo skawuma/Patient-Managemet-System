@@ -1,5 +1,6 @@
 package com.skawuma.controller;
 
+import com.skawuma.dto.PagedPatientResponseDTO;
 import com.skawuma.dto.PatientRequestDTO;
 import com.skawuma.dto.PatientResponseDTO;
 import com.skawuma.dto.validators.CreatePatientValidationGroup;
@@ -48,8 +49,14 @@ public class PatientController {
             @ApiResponse(responseCode = "400", description = "No Patient Added Yet , Please Add Patient ")
     }
     )
-    public ResponseEntity<List<PatientResponseDTO>> getPatients() {
-        List<PatientResponseDTO> patients = patientService.getPatients();
+    public ResponseEntity<PagedPatientResponseDTO> getPatients(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "asc") String sort,
+            @RequestParam(defaultValue = "name") String sortField,
+            @RequestParam(defaultValue = "") String searchValue
+    ) {
+        PagedPatientResponseDTO patients = patientService.getPatients(size, page, sort, sortField, searchValue);
         return ResponseEntity.ok().body(patients);
     }
 

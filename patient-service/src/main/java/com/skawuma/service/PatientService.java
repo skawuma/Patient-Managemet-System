@@ -1,5 +1,6 @@
 package com.skawuma.service;
 
+import com.skawuma.dto.PagedPatientResponseDTO;
 import com.skawuma.dto.PatientRequestDTO;
 import com.skawuma.dto.PatientResponseDTO;
 import com.skawuma.exception.EmailAlreadyExistsException;
@@ -9,7 +10,13 @@ import com.skawuma.kafka.KafkaProducer;
 import com.skawuma.mapper.PatientMapper;
 import com.skawuma.model.Patient;
 import com.skawuma.repository.PatientRepository;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -24,6 +31,8 @@ import java.util.UUID;
  */
 @Service
 public class PatientService {
+    private static final Logger log = org.slf4j.LoggerFactory.getLogger(
+            PatientService.class);
 
     private final BillingServiceGrpcClient billingServiceGrpcClient;
 
@@ -39,12 +48,48 @@ public class PatientService {
     }
 
 
-        public List<PatientResponseDTO> getPatients() {
-            List<Patient> patients = patientRepository.findAll();
+    @Cacheable(
+            value = "patients",
+            key = "#page + '-' + #size + '-' + #sort + '-' + #sortField",
+            condition = "#searchValue == ''"
+    )
+    public PagedPatientResponseDTO getPatients(int page, int size, String sort,
+                                               String sortField, String searchValue) {
 
-            return patients.stream().map(PatientMapper::toDTO).toList();
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            log.error(e.getMessage());
+        }
 
+        Pageable pageable = PageRequest.of(page -1, size,
+                sort.equalsIgnoreCase("desc") // "asc"
+                        ? Sort.by(sortField).descending()
+                        : Sort.by(sortField).ascending());
+
+        Page<Patient> patientPage;
+
+        if(searchValue == null || searchValue.isBlank()) {
+            patientPage = patientRepository.findAll(pageable);
+        } else {
+            patientPage =
+                    patientRepository.findByNameContainingIgnoreCase(searchValue, pageable);
+        }
+
+        List<PatientResponseDTO> patientResponseDtos = patientPage.getContent()
+                .stream()
+                .map(PatientMapper::toDTO)
+                .toList();
+
+        return new PagedPatientResponseDTO(
+                patientResponseDtos,
+                patientPage.getNumber() +1,
+                patientPage.getSize(),
+                patientPage.getTotalPages(),
+                (int)patientPage.getTotalElements()
+        );
     }
+
 
     public PatientResponseDTO createPatient(PatientRequestDTO patientRequestDTO) {
         if (patientRepository.existsByEmail(patientRequestDTO.getEmail())) {
